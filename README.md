@@ -16,4 +16,4 @@
 
  - I'm most proud of the UX when searching for songs! I looked to Musescore for inspiration, and so theres both the option to search for user-uploaded songs but also public songs, allowing users to get recommendations for new songs to try playing.
 
-
+Run with: `npm run dev`
