@@ -14,6 +14,7 @@
 
  - One thing I would've done different with more time (really, more credits) is structuring the database better. Notably, .mid songs would definitely go in a storage bucket rather than be saved directly in a table. 
 
- - I'm most proud of the UX when searching for songs! I looked to Musescore for inspiration, and so theres both the option to search for user-uploaded songs but also public songs, allowing users to get recommendations for new songs to try playing.
+ - I'm most proud of the UX when searching for songs! I looked to Musescore for inspiration, and so theres both the option to search for user-uploaded songs but also public songs, allowing users to get recommendations for new songs to try playing. Pagination is specifically added to answer the question "What does the catalogue feel like with 0 items? With 3? With 300?"
+
 
 Run with: `npm run dev`
