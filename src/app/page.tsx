@@ -28,8 +28,9 @@ import { FiltersAndSort } from '@/components/FiltersAndSort';
 import { SongCard } from '@/components/SongCard';
 import { SongTableRow } from '@/components/SongTableRow';
 import { Pagination } from '@/components/Pagination';
-import { SongDetailPanel } from '@/components/SongDetailPanel';
+import { SongDetailPanel, SongDetailCloseMeta } from '@/components/SongDetailPanel';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
+import { ToastContainer, ToastMessage } from '@/components/Toast';
 import { Music, Upload, Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -37,6 +38,19 @@ export default function Home() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]); // Zero presets
   const [isLoading, setIsLoading] = useState(true);
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isDetailNewSong, setIsDetailNewSong] = useState(false);
+
+  const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setToasts((prev) => [...prev, { id, title, description, type }]);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Library Tab: 'my_library' vs 'public_songs'
   const [libraryTab, setLibraryTab] = useState<LibraryTab>('my_library');
@@ -209,7 +223,7 @@ export default function Home() {
   // Direct 1-Stage File Processing: Single click / drop parses and adds to library immediately
   const handleProcessDirectFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.mid') && !file.name.toLowerCase().endsWith('.midi')) {
-      alert('Please upload a standard MIDI (.mid) file.');
+      showToast('Invalid File Type', 'Please upload a standard MIDI (.mid or .midi) file.', 'error');
       return;
     }
 
@@ -249,10 +263,11 @@ export default function Home() {
       await saveSongToSupabase(newSong);
       setSongs((prev) => [newSong, ...prev]);
       setLibraryTab('my_library');
+      setIsDetailNewSong(true);
       setSelectedSongForDetail(newSong);
     } catch (err: any) {
       console.error('Upload error:', err);
-      alert(err?.message || 'Error processing MIDI file.');
+      showToast('Upload Failed', err?.message || 'Error processing MIDI file.', 'error');
     } finally {
       setIsUploadingFile(false);
       if (directFileInputRef.current) directFileInputRef.current.value = '';
@@ -260,6 +275,24 @@ export default function Home() {
   };
 
   // Song Actions
+  const handleOpenDetail = (song: Song) => {
+    setIsDetailNewSong(false);
+    setSelectedSongForDetail(song);
+  };
+
+  const handleCloseDetail = (meta?: SongDetailCloseMeta) => {
+    const songTitle = meta?.songTitle || selectedSongForDetail?.title || 'Song';
+
+    if (isDetailNewSong) {
+      showToast('Song Added', `"${songTitle}" was added to your library`);
+    } else if (meta?.saved) {
+      showToast('Changes Saved', `Changes to "${songTitle}" were saved`);
+    }
+
+    setSelectedSongForDetail(null);
+    setIsDetailNewSong(false);
+  };
+
   const handleToggleFavorite = async (id: string, current: boolean) => {
     const next = !current;
     setSongs((prev) =>
@@ -273,6 +306,7 @@ export default function Home() {
       prev.map((s) => (s.id === id ? { ...s, title, artist } : s))
     );
     await updateSongInSupabase(id, { title, artist });
+    showToast('Changes Saved', `Changes to "${title}" were saved`);
   };
 
   const handleChangeDifficulty = async (id: string, difficulty: DifficultyLevel) => {
@@ -327,6 +361,7 @@ export default function Home() {
     setSongs((prev) => [newLibrarySong, ...prev]);
     await saveSongToSupabase(newLibrarySong);
     setLibraryTab('my_library');
+    showToast('Song Added', `"${publicSong.title}" added to your library`);
   };
 
   const handleSongUpdated = (updatedSong: Song) => {
@@ -499,7 +534,7 @@ export default function Home() {
                       isPublicView={libraryTab === 'public_songs'}
                       isAlreadyInLibrary={isSongInUserLibrary(song)}
                       collections={collections}
-                      onOpenDetail={(s) => setSelectedSongForDetail(s)}
+                      onOpenDetail={handleOpenDetail}
                       onToggleFavorite={handleToggleFavorite}
                       onDelete={handleDeleteSong}
                       onAddToLibrary={handleAddToLibrary}
@@ -525,7 +560,7 @@ export default function Home() {
                 isPublicView={libraryTab === 'public_songs'}
                 isAlreadyInLibrary={isSongInUserLibrary(song)}
                 collections={collections}
-                onOpenDetail={(s) => setSelectedSongForDetail(s)}
+                onOpenDetail={handleOpenDetail}
                 onToggleFavorite={handleToggleFavorite}
                 onDelete={handleDeleteSong}
                 onAddToLibrary={handleAddToLibrary}
@@ -555,10 +590,13 @@ export default function Home() {
       {selectedSongForDetail && (
         <SongDetailPanel
           song={selectedSongForDetail}
-          onClose={() => setSelectedSongForDetail(null)}
+          onClose={handleCloseDetail}
           onSongUpdated={handleSongUpdated}
         />
       )}
+
+      {/* Floating Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

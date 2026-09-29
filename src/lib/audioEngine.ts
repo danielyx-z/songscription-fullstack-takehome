@@ -66,7 +66,7 @@ export class AudioEngine {
     // We schedule in raw seconds regardless of bpm, so keep transport's
     // playback rate tied to tempoMultiplier instead of bpm math.
     Tone.Transport.bpm.value = 120;
-    Tone.Transport.playbackRate = this.tempoMultiplier;
+    (Tone.Transport as any).playbackRate = this.tempoMultiplier;
 
     // Schedule every remaining note relative to the transport's own clock,
     // so pausing/seeking cancels them cleanly via Tone.Transport.clear.

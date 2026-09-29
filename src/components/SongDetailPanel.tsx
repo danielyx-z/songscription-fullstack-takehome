@@ -14,11 +14,17 @@ import {
   Edit2,
   Minus,
   Plus,
+  X,
 } from 'lucide-react';
+
+export interface SongDetailCloseMeta {
+  saved?: boolean;
+  songTitle?: string;
+}
 
 interface SongDetailPanelProps {
   song: Song | null;
-  onClose: () => void;
+  onClose: (meta?: SongDetailCloseMeta) => void;
   onSongUpdated: (updatedSong: Song) => void;
 }
 
@@ -37,6 +43,7 @@ export const SongDetailPanel: React.FC<SongDetailPanelProps> = ({
   const [editableTitle, setEditableTitle] = useState(song?.title || '');
   const [editableArtist, setEditableArtist] = useState(song?.artist || '');
   const [isSavedRecently, setIsSavedRecently] = useState(false);
+  const [hasSavedChanges, setHasSavedChanges] = useState(false);
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -137,11 +144,9 @@ export const SongDetailPanel: React.FC<SongDetailPanelProps> = ({
     ctx.stroke();
   }, [song, currentTime]);
 
-  if (!song) return null;
-
   // Auto-save on blur or when pressing Enter (disabled for public songs)
   const handleAutoSave = async () => {
-    if (song.isPublic) return;
+    if (!song || song.isPublic) return;
     if (!editableTitle.trim()) return;
     const finalTitle = editableTitle.trim();
     const finalArtist = editableArtist.trim() || 'Unknown Artist';
@@ -156,9 +161,58 @@ export const SongDetailPanel: React.FC<SongDetailPanelProps> = ({
 
     await updateSongInSupabase(song.id, { title: finalTitle, artist: finalArtist });
     onSongUpdated(updatedSong);
+    setHasSavedChanges(true);
     setIsSavedRecently(true);
     setTimeout(() => setIsSavedRecently(false), 2000);
   };
+
+  const handleClose = () => {
+    if (!song) {
+      onClose();
+      return;
+    }
+
+    let saved = hasSavedChanges;
+    let finalTitle = editableTitle.trim() || song.title;
+
+    // If user edited title/artist and clicks off before blurring or pressing Enter
+    if (
+      !song.isPublic &&
+      editableTitle.trim() &&
+      (editableTitle.trim() !== song.title || editableArtist.trim() !== song.artist)
+    ) {
+      const finalArtist = editableArtist.trim() || 'Unknown Artist';
+      const updatedSong: Song = {
+        ...song,
+        title: finalTitle,
+        artist: finalArtist,
+      };
+      updateSongInSupabase(song.id, { title: finalTitle, artist: finalArtist });
+      onSongUpdated(updatedSong);
+      saved = true;
+    }
+
+    onClose({
+      saved,
+      songTitle: finalTitle,
+    });
+  };
+
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+
+  // Close on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCloseRef.current();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  if (!song) return null;
 
   // Adjust BPM in increments of 5
   const handleAdjustBpm = (delta: number) => {
@@ -206,23 +260,21 @@ export const SongDetailPanel: React.FC<SongDetailPanelProps> = ({
 
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-sm animate-fadeIn cursor-pointer"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className="relative flex h-full w-full max-w-xl flex-col bg-[#131b2e] border-l border-slate-700 shadow-2xl overflow-y-auto cursor-default text-white"
       >
-        {/* Floating save toast. No header bar - click outside the panel to close. */}
-        <div
-          className={`pointer-events-none fixed top-4 right-4 z-30 transition-all duration-300 ${
-            isSavedRecently ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
-          }`}
+        {/* Top-right close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-5 right-5 z-20 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-400 hover:text-white hover:bg-slate-700/80 transition-all shadow-sm"
+          title="Close (Esc)"
         >
-          <span className="flex items-center gap-1.5 rounded-xl border border-brand/30 bg-[#131b2e]/95 px-3 py-1.5 text-xs font-semibold text-brand shadow-lg backdrop-blur-md">
-            <Check className="h-3.5 w-3.5" /> Details saved
-          </span>
-        </div>
+          <X className="h-4 w-4" />
+        </button>
 
         {/* Content */}
         <div className="p-6 pt-8 space-y-6">
