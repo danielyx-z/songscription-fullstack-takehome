@@ -47,3 +47,25 @@ ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public access to collections" ON public.collections FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public access to songs" ON public.songs FOR ALL USING (true) WITH CHECK (true);
+
+-- 3. Storage Bucket for MIDI files & Public Access Policies
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('midi-files', 'midi-files', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+CREATE POLICY "Allow public read access to midi files"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'midi-files');
+
+CREATE POLICY "Allow public upload to midi files"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'midi-files');
+
+CREATE POLICY "Allow public update to midi files"
+ON storage.objects FOR UPDATE
+USING (bucket_id = 'midi-files');
+
+CREATE POLICY "Allow public delete to midi files"
+ON storage.objects FOR DELETE
+USING (bucket_id = 'midi-files');
+

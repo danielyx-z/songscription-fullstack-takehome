@@ -180,9 +180,13 @@ export async function uploadMidiToStorage(file: File, path: string): Promise<{ u
   try {
     const { data, error } = await supabase.storage
       .from('midi-files')
-      .upload(path, file, { upsert: true });
+      .upload(path, file, {
+        upsert: true,
+        contentType: 'audio/midi',
+      });
 
     if (error) {
+      console.error('Storage upload error:', error);
       return { url: null, error: error.message };
     }
 
@@ -192,6 +196,8 @@ export async function uploadMidiToStorage(file: File, path: string): Promise<{ u
 
     return { url: publicUrlData.publicUrl, error: null };
   } catch (err: any) {
+    console.error('Storage upload exception:', err);
     return { url: null, error: err?.message || 'Storage upload error' };
   }
 }
+
