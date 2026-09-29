@@ -381,7 +381,6 @@ export default function Home() {
         }
         setSongs((prev) => prev.filter((s) => s.id !== id));
         await deleteSongFromSupabase(id);
-        showToast('Song Deleted', `${songTitle} was removed from your library`);
       },
     });
   };

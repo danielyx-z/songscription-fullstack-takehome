@@ -42,7 +42,7 @@ const ToastItem: React.FC<{
     const animFrame = requestAnimationFrame(() => setIsVisible(true));
     
     // Auto dismiss timer (longer for errors to give user time to read)
-    const defaultDuration = toast.type === 'error' ? 5000 : 3500;
+    const defaultDuration = toast.type === 'error' ? 3000 : 1500;
     const duration = toast.duration || defaultDuration;
     const timer = setTimeout(() => {
       setIsVisible(false);
