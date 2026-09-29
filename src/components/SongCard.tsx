@@ -29,7 +29,7 @@ interface SongCardProps {
   onUpdateTitleArtist?: (id: string, title: string, artist: string) => void;
   onChangeDifficulty?: (id: string, difficulty: DifficultyLevel) => void;
   onAssignCollection?: (songId: string, collectionId: string | null) => void;
-  onCreateCollection?: (name: string) => Promise<void>;
+  onCreateCollection?: (name: string, songId?: string) => Promise<void>;
   isPlayingPreview?: boolean;
   onTogglePreview?: (song: Song) => void;
 }
@@ -124,8 +124,10 @@ export const SongCard: React.FC<SongCardProps> = ({
   const handleCreateCollection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCollectionName.trim() || !onCreateCollection) return;
-    await onCreateCollection(newCollectionName.trim());
+    await onCreateCollection(newCollectionName.trim(), song.id);
     setNewCollectionName('');
+    setShowCollectionSubmenu(false);
+    setMenuOpen(false);
   };
 
   const assignedCollection = collections.find((c) => c.id === song.collectionId);

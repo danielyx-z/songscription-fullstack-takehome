@@ -31,6 +31,7 @@ import { Pagination } from '@/components/Pagination';
 import { SongDetailPanel, SongDetailCloseMeta } from '@/components/SongDetailPanel';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { ToastContainer, ToastMessage } from '@/components/Toast';
+import { MessageBox } from '@/components/MessageBox';
 import { Music, Upload, Loader2 } from 'lucide-react';
 
 export default function Home() {
@@ -43,6 +44,22 @@ export default function Home() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isDetailNewSong, setIsDetailNewSong] = useState(false);
 
+  // Custom Message Box Modal Dialog
+  const [messageBoxConfig, setMessageBoxConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const showToast = (title: string, description?: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     setToasts((prev) => [...prev, { id, title, description, type }]);
@@ -50,6 +67,10 @@ export default function Home() {
 
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const closeMessageBox = () => {
+    setMessageBoxConfig((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Library Tab: 'my_library' vs 'public_songs'
@@ -323,24 +344,46 @@ export default function Home() {
     await updateSongInSupabase(songId, { collectionId });
   };
 
-  const handleCreateCollection = async (name: string) => {
+  const handleCreateCollection = async (name: string, songId?: string) => {
     const { data: newCol } = await createCollectionInSupabase(name);
-    if (newCol) {
-      setCollections((prev) => [...prev, newCol]);
+    const created = newCol || { id: `col-${Date.now()}`, name };
+    setCollections((prev) => [...prev, created]);
+
+    if (songId) {
+      await handleAssignCollection(songId, created.id);
+      const targetSong = songs.find((s) => s.id === songId);
+      const songTitle = targetSong?.title ? `"${targetSong.title}"` : 'Song';
+      showToast('Collection Created', `Created "${name}" and added ${songTitle}`);
     } else {
-      const localCol: Collection = { id: `col-${Date.now()}`, name };
-      setCollections((prev) => [...prev, localCol]);
+      showToast('Collection Created', `Created collection "${name}"`);
     }
   };
 
-  const handleDeleteSong = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this song?')) return;
-    if (previewPlayingSongId === id) {
-      quickAudioEngineRef.current?.stop();
-      setPreviewPlayingSongId(null);
-    }
-    setSongs((prev) => prev.filter((s) => s.id !== id));
-    await deleteSongFromSupabase(id);
+  const handleDeleteSong = (id: string) => {
+    const songToDelete = songs.find((s) => s.id === id);
+    const songTitle = songToDelete?.title ? `"${songToDelete.title}"` : 'this song';
+
+    setMessageBoxConfig({
+      isOpen: true,
+      title: 'Delete Song',
+      message: `Are you sure you want to delete ${songTitle}? This action will permanently remove it from your library.`,
+      confirmText: 'Delete Song',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: async () => {
+        closeMessageBox();
+        if (previewPlayingSongId === id) {
+          quickAudioEngineRef.current?.stop();
+          setPreviewPlayingSongId(null);
+        }
+        if (selectedSongForDetail?.id === id) {
+          setSelectedSongForDetail(null);
+        }
+        setSongs((prev) => prev.filter((s) => s.id !== id));
+        await deleteSongFromSupabase(id);
+        showToast('Song Deleted', `${songTitle} was removed from your library`);
+      },
+    });
   };
 
   // Add a public song to user's personal library
@@ -597,6 +640,18 @@ export default function Home() {
 
       {/* Floating Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Custom Confirmation / Alert Message Box Modal */}
+      <MessageBox
+        isOpen={messageBoxConfig.isOpen}
+        title={messageBoxConfig.title}
+        message={messageBoxConfig.message}
+        confirmText={messageBoxConfig.confirmText}
+        cancelText={messageBoxConfig.cancelText}
+        type={messageBoxConfig.type}
+        onConfirm={messageBoxConfig.onConfirm}
+        onCancel={closeMessageBox}
+      />
     </div>
   );
 }
